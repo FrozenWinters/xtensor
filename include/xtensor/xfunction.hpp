@@ -184,17 +184,17 @@ namespace xt
     template<class S, class is_trivial>
     struct xfunction_cache
     {
-      mutable S m_shape = xtl::make_sequence<S>(0, std::size_t(0));
-      mutable bool m_shape_trivial;
-      mutable bool m_shape_computed = false;
+        mutable S m_shape;
+        mutable bool m_shape_trivial;
+        mutable bool m_shape_computed = false;
     };
 
     template<std::size_t... N, class is_trivial>
     struct xfunction_cache<fixed_shape<N...>, is_trivial>
     {
-      XTENSOR_CONSTEXPR_ENHANCED_STATIC fixed_shape<N...> m_shape = fixed_shape<N...>();
-      XTENSOR_CONSTEXPR_ENHANCED_STATIC bool m_shape_trivial = is_trivial::value;
-      XTENSOR_CONSTEXPR_ENHANCED_STATIC bool m_shape_computed = true;
+        XTENSOR_CONSTEXPR_ENHANCED_STATIC fixed_shape<N...> m_shape = fixed_shape<N...>();
+        XTENSOR_CONSTEXPR_ENHANCED_STATIC bool m_shape_trivial = is_trivial::value;
+        XTENSOR_CONSTEXPR_ENHANCED_STATIC bool m_shape_computed = true;
     };
 
     // Augmented for exposing possible promote augmentation
@@ -792,14 +792,16 @@ namespace xt
     template <class S>
     inline bool xfunction_base<F, R, CT...>::broadcast_shape(S& shape, bool reuse_cache) const
     {
-        if(reuse_cache)
+        if (reuse_cache)
         {
-            std::copy(this->shape().cbegin(), this->shape().cend(), shape.begin());
+            std::copy(this->m_shape.cbegin(), this->m_shape.cend(), shape.begin());
             return this->m_shape_trivial;
         }
         else
         {
-            return xt::broadcast_shape(this->shape(), shape) && this->m_shape_trivial;
+            // e.broadcast_shape must be evaluated even if b is false
+            auto func = [&shape](bool b, auto&& e) { return e.broadcast_shape(shape) && b; };
+            return accumulate(func, true, m_e);
         }
     }
 
